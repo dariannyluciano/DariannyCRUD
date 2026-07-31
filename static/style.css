@@ -54,6 +54,17 @@ table {
     margin-top: 16px;
 }
 
+.search-form {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.search-form input {
+    max-width: 320px;
+}
+
 th,
 td {
     padding: 12px;
