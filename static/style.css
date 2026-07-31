@@ -61,6 +61,12 @@ table {
     margin-top: 12px;
 }
 
+.total {
+    margin: 4px 0 0;
+    color: #52616b;
+    font-weight: bold;
+}
+
 .search-form input {
     max-width: 320px;
 }
