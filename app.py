@@ -61,6 +61,14 @@ def get_estudiante(estudiante_id):
         ).fetchone()
 
 
+def correo_valido(correo):
+    if "@" not in correo:
+        return False
+
+    usuario, dominio = correo.split("@", 1)
+    return bool(usuario and "." in dominio and dominio.rsplit(".", 1)[-1])
+
+
 def guardar_estudiante(data):
     nombre = data.get("nombre", "").strip()
     matricula = data.get("matricula", "").strip()
@@ -69,6 +77,9 @@ def guardar_estudiante(data):
 
     if not nombre or not matricula or not carrera or not correo:
         return "Todos los campos son obligatorios."
+
+    if not correo_valido(correo):
+        return "El correo electronico no es valido."
 
     try:
         with get_connection() as connection:
@@ -92,6 +103,9 @@ def actualizar_estudiante(estudiante_id, data):
 
     if not nombre or not matricula or not carrera or not correo:
         return "Todos los campos son obligatorios."
+
+    if not correo_valido(correo):
+        return "El correo electronico no es valido."
 
     try:
         with get_connection() as connection:
