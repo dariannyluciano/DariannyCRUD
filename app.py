@@ -8,6 +8,13 @@ import sqlite3
 
 DB_PATH = Path("estudiantes.db")
 PORT = 8000
+CARRERAS = [
+    "Software",
+    "Redes",
+    "Multimedia",
+    "Mecatronica",
+    "Seguridad Informatica",
+]
 
 
 @contextmanager
@@ -217,6 +224,11 @@ def form_page(estudiante=None, message=""):
     matricula = estudiante["matricula"] if estudiante else ""
     carrera = estudiante["carrera"] if estudiante else ""
     correo = estudiante["correo"] if estudiante else ""
+    opciones_carrera = ""
+
+    for opcion in CARRERAS:
+        selected = " selected" if opcion == carrera else ""
+        opciones_carrera += f'<option value="{escape(opcion)}"{selected}>{escape(opcion)}</option>'
 
     content = f"""
     <section class="panel form-panel">
@@ -229,7 +241,10 @@ def form_page(estudiante=None, message=""):
                 <input type="text" name="matricula" value="{escape(matricula)}" required>
             </label>
             <label>Carrera
-                <input type="text" name="carrera" value="{escape(carrera)}" required>
+                <select name="carrera" required>
+                    <option value="">Seleccione una carrera</option>
+                    {opciones_carrera}
+                </select>
             </label>
             <label>Correo
                 <input type="email" name="correo" value="{escape(correo)}" required>
