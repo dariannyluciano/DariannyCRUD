@@ -281,6 +281,13 @@ def parse_form(body):
     return {key: values[0] for key, values in fields.items()}
 
 
+def obtener_id(params):
+    try:
+        return int(params.get("id", [0])[0])
+    except ValueError:
+        return 0
+
+
 class EstudiantesHandler(BaseHTTPRequestHandler):
     def send_html(self, html, status=200):
         body = html.encode("utf-8")
@@ -305,13 +312,13 @@ class EstudiantesHandler(BaseHTTPRequestHandler):
         elif parsed_url.path == "/nuevo":
             self.send_html(form_page())
         elif parsed_url.path == "/detalle":
-            estudiante = get_estudiante(int(params.get("id", [0])[0]))
+            estudiante = get_estudiante(obtener_id(params))
             if estudiante:
                 self.send_html(detail_page(estudiante))
             else:
                 self.send_html(index_page("Estudiante no encontrado."))
         elif parsed_url.path == "/editar":
-            estudiante = get_estudiante(int(params.get("id", [0])[0]))
+            estudiante = get_estudiante(obtener_id(params))
             if estudiante:
                 self.send_html(form_page(estudiante))
             else:
@@ -340,7 +347,11 @@ class EstudiantesHandler(BaseHTTPRequestHandler):
             else:
                 self.send_html(index_page("Estudiante registrado correctamente."))
         elif parsed_url.path == "/actualizar":
-            estudiante_id = int(params.get("id", [0])[0])
+            estudiante_id = obtener_id(params)
+            if not get_estudiante(estudiante_id):
+                self.send_html(index_page("Estudiante no encontrado."))
+                return
+
             error = actualizar_estudiante(estudiante_id, data)
             if error:
                 estudiante = get_estudiante(estudiante_id)
@@ -348,7 +359,11 @@ class EstudiantesHandler(BaseHTTPRequestHandler):
             else:
                 self.send_html(index_page("Estudiante actualizado correctamente."))
         elif parsed_url.path == "/eliminar":
-            estudiante_id = int(params.get("id", [0])[0])
+            estudiante_id = obtener_id(params)
+            if not get_estudiante(estudiante_id):
+                self.send_html(index_page("Estudiante no encontrado."))
+                return
+
             eliminar_estudiante(estudiante_id)
             self.send_html(index_page("Estudiante eliminado correctamente."))
         else:
