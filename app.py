@@ -36,8 +36,19 @@ def init_db():
         )
 
 
-def get_estudiantes():
+def get_estudiantes(search=""):
     with get_connection() as connection:
+        if search:
+            value = f"%{search}%"
+            return connection.execute(
+                """
+                SELECT * FROM estudiantes
+                WHERE nombre LIKE ? OR matricula LIKE ? OR carrera LIKE ?
+                ORDER BY id DESC
+                """,
+                (value, value, value),
+            ).fetchall()
+
         return connection.execute(
             "SELECT * FROM estudiantes ORDER BY id DESC"
         ).fetchall()
@@ -131,8 +142,9 @@ def page(title, content, message=""):
 </html>"""
 
 
-def index_page(message=""):
-    estudiantes = get_estudiantes()
+def index_page(message="", search=""):
+    estudiantes = get_estudiantes(search)
+    search_value = escape(search)
 
     if not estudiantes:
         rows = '<p class="empty">No hay estudiantes registrados.</p>'
@@ -171,6 +183,11 @@ def index_page(message=""):
     content = f"""
     <section class="panel">
         <h2>Listado de estudiantes</h2>
+        <form class="search-form" action="/" method="get">
+            <input type="text" name="buscar" value="{search_value}" placeholder="Buscar estudiante">
+            <button type="submit">Buscar</button>
+            <a href="/">Limpiar</a>
+        </form>
         {rows}
     </section>
     """
@@ -253,7 +270,8 @@ class EstudiantesHandler(BaseHTTPRequestHandler):
         params = parse_qs(parsed_url.query)
 
         if parsed_url.path == "/":
-            self.send_html(index_page())
+            search = params.get("buscar", [""])[0].strip()
+            self.send_html(index_page(search=search))
         elif parsed_url.path == "/nuevo":
             self.send_html(form_page())
         elif parsed_url.path == "/detalle":
