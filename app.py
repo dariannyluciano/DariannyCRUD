@@ -1,4 +1,4 @@
-from contextlib import contextmanager
+﻿from contextlib import contextmanager
 from html import escape
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -6,7 +6,9 @@ from urllib.parse import parse_qs, urlparse
 import sqlite3
 
 
-DB_PATH = Path("estudiantes.db")
+BASE_DIR = Path(__file__).resolve().parent
+DB_PATH = BASE_DIR / "estudiantes.db"
+STYLE_PATH = BASE_DIR / "static" / "style.css"
 PORT = 8000
 CARRERAS = [
     "Software",
@@ -134,6 +136,17 @@ def eliminar_estudiante(estudiante_id):
         connection.execute("DELETE FROM estudiantes WHERE id = ?", (estudiante_id,))
 
 
+def value_from(item, key):
+    if not item:
+        return ""
+    value = item[key] if key in item.keys() else ""
+    return "" if value is None else str(value)
+
+
+def item_has_id(item):
+    return bool(item and "id" in item.keys() and str(item["id"]).strip())
+
+
 def page(title, content, message=""):
     message_html = ""
     if message:
@@ -149,11 +162,12 @@ def page(title, content, message=""):
 </head>
 <body>
     <header class="header">
-        <div>
-            <h1>CRUD de Estudiantes</h1>
-            <p>Registro basico para gestionar estudiantes.</p>
+        <div class="header-inner">
+            <div>
+                <h1>Registro</h1>
+            </div>
+            <a class="button header-button" href="/?form=nuevo">Nuevo estudiante</a>
         </div>
-        <a class="button" href="/nuevo">Nuevo estudiante</a>
     </header>
     <main class="container">
         {message_html}
@@ -163,76 +177,32 @@ def page(title, content, message=""):
 </html>"""
 
 
-def index_page(message="", search=""):
-    estudiantes = get_estudiantes(search)
-    search_value = escape(search)
+def form_section(estudiante=None, message=""):
+    editing = item_has_id(estudiante)
+    title = "Editar estudiante" if editing else "Nuevo estudiante"
+    action = f'/actualizar?id={estudiante["id"]}' if editing else "/crear"
 
-    if not estudiantes:
-        rows = '<p class="empty">No hay estudiantes registrados.</p>'
-    else:
-        rows = """
-        <table>
-            <thead>
-                <tr>
-                    <th>Nombre</th>
-                    <th>Matricula</th>
-                    <th>Carrera</th>
-                    <th>Correo</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-        """
-        for estudiante in estudiantes:
-            rows += f"""
-                <tr>
-                    <td>{escape(estudiante["nombre"])}</td>
-                    <td>{escape(estudiante["matricula"])}</td>
-                    <td>{escape(estudiante["carrera"])}</td>
-                    <td>{escape(estudiante["correo"])}</td>
-                    <td class="actions">
-                        <a href="/detalle?id={estudiante["id"]}">Ver</a>
-                        <a href="/editar?id={estudiante["id"]}">Editar</a>
-                        <form action="/eliminar?id={estudiante["id"]}" method="post">
-                            <button type="submit">Eliminar</button>
-                        </form>
-                    </td>
-                </tr>
-            """
-        rows += "</tbody></table>"
-
-    content = f"""
-    <section class="panel">
-        <h2>Listado de estudiantes</h2>
-        <p class="total">Total registrados: {len(estudiantes)}</p>
-        <form class="search-form" action="/" method="get">
-            <input type="text" name="buscar" value="{search_value}" placeholder="Buscar estudiante">
-            <button type="submit">Buscar</button>
-            <a href="/">Limpiar</a>
-        </form>
-        {rows}
-    </section>
-    """
-    return page("CRUD de Estudiantes", content, message)
-
-
-def form_page(estudiante=None, message=""):
-    title = "Editar estudiante" if estudiante else "Nuevo estudiante"
-    action = f'/actualizar?id={estudiante["id"]}' if estudiante else "/crear"
-
-    nombre = estudiante["nombre"] if estudiante else ""
-    matricula = estudiante["matricula"] if estudiante else ""
-    carrera = estudiante["carrera"] if estudiante else ""
-    correo = estudiante["correo"] if estudiante else ""
+    nombre = value_from(estudiante, "nombre")
+    matricula = value_from(estudiante, "matricula")
+    carrera = value_from(estudiante, "carrera")
+    correo = value_from(estudiante, "correo")
     opciones_carrera = ""
 
     for opcion in CARRERAS:
         selected = " selected" if opcion == carrera else ""
         opciones_carrera += f'<option value="{escape(opcion)}"{selected}>{escape(opcion)}</option>'
 
-    content = f"""
-    <section class="panel form-panel">
-        <h2>{title}</h2>
+    message_html = ""
+    if message:
+        message_html = f'<p class="form-message">{escape(message)}</p>'
+
+    return f"""
+    <section class="panel form-panel" id="formulario">
+        <div class="panel-title">
+            <span class="icon-box">+</span>
+            <h2>{title}</h2>
+        </div>
+        {message_html}
         <form action="{action}" method="post">
             <label>Nombre
                 <input type="text" name="nombre" value="{escape(nombre)}" required>
@@ -251,25 +221,94 @@ def form_page(estudiante=None, message=""):
             </label>
             <div class="form-actions">
                 <button class="button" type="submit">Guardar</button>
-                <a href="/">Cancelar</a>
+                <a class="link-button" href="/">Cancelar</a>
             </div>
         </form>
     </section>
     """
-    return page(title, content, message)
+
+
+def index_page(message="", search="", form_item=None, form_message=""):
+    estudiantes = get_estudiantes(search)
+    search_value = escape(search)
+    form_html = form_section(form_item, form_message) if form_item is not None else ""
+    grid_class = "content-grid with-form" if form_html else "content-grid"
+
+    if not estudiantes:
+        rows = '<p class="empty">No hay estudiantes registrados.</p>'
+    else:
+        rows = """
+        <table>
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Matricula</th>
+                    <th>Carrera</th>
+                    <th>Correo</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+        """
+        for estudiante in estudiantes:
+            estudiante_id = estudiante["id"]
+            rows += f"""
+                <tr>
+                    <td><strong>{escape(estudiante["nombre"])}</strong></td>
+                    <td>{escape(estudiante["matricula"])}</td>
+                    <td>{escape(estudiante["carrera"])}</td>
+                    <td>{escape(estudiante["correo"])}</td>
+                    <td class="actions">
+                        <a class="small-button" href="/detalle?id={estudiante_id}">Ver</a>
+                        <a class="small-button" href="/?editar={estudiante_id}">Editar</a>
+                        <form action="/eliminar?id={estudiante_id}" method="post">
+                            <button class="small-button danger" type="submit">Eliminar</button>
+                        </form>
+                    </td>
+                </tr>
+            """
+        rows += "</tbody></table>"
+
+    content = f"""
+    <div class="{grid_class}">
+        <section class="panel list-panel">
+            <div class="panel-title">
+                <h2>Listado de estudiantes</h2>
+            </div>
+            <p class="total">Total registrados: {len(estudiantes)}</p>
+            <form class="search-form" action="/" method="get">
+                <input type="text" name="buscar" value="{search_value}" placeholder="Buscar estudiante">
+                <button type="submit">Buscar</button>
+                <a class="link-button" href="/">Limpiar</a>
+            </form>
+            <div class="table-area">
+                {rows}
+            </div>
+        </section>
+        {form_html}
+    </div>
+    """
+    return page("Registro", content, message)
+
+
+def form_page(estudiante=None, message=""):
+    return page("Formulario de estudiante", form_section(estudiante, message))
 
 
 def detail_page(estudiante):
     content = f"""
     <section class="panel detail">
-        <h2>Detalle del estudiante</h2>
+        <div class="panel-title">
+            <span class="icon-box">i</span>
+            <h2>Detalle del estudiante</h2>
+        </div>
         <p><strong>Nombre:</strong> {escape(estudiante["nombre"])}</p>
         <p><strong>Matricula:</strong> {escape(estudiante["matricula"])}</p>
         <p><strong>Carrera:</strong> {escape(estudiante["carrera"])}</p>
         <p><strong>Correo:</strong> {escape(estudiante["correo"])}</p>
         <div class="form-actions">
-            <a class="button" href="/editar?id={estudiante["id"]}">Editar</a>
-            <a href="/">Volver</a>
+            <a class="button" href="/?editar={estudiante["id"]}">Editar</a>
+            <a class="link-button" href="/">Volver</a>
         </div>
     </section>
     """
@@ -302,15 +341,33 @@ class EstudiantesHandler(BaseHTTPRequestHandler):
         self.send_header("Location", location)
         self.end_headers()
 
+    def send_css(self):
+        body = STYLE_PATH.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/css; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
         parsed_url = urlparse(self.path)
         params = parse_qs(parsed_url.query)
 
         if parsed_url.path == "/":
             search = params.get("buscar", [""])[0].strip()
-            self.send_html(index_page(search=search))
+            message = ""
+            form_item = None
+
+            if params.get("form", [""])[0] == "nuevo":
+                form_item = {}
+            elif "editar" in params:
+                form_item = get_estudiante(obtener_id({"id": params["editar"]}))
+                if not form_item:
+                    message = "Estudiante no encontrado."
+
+            self.send_html(index_page(message=message, search=search, form_item=form_item))
         elif parsed_url.path == "/nuevo":
-            self.send_html(form_page())
+            self.redirect("/?form=nuevo")
         elif parsed_url.path == "/detalle":
             estudiante = get_estudiante(obtener_id(params))
             if estudiante:
@@ -318,19 +375,10 @@ class EstudiantesHandler(BaseHTTPRequestHandler):
             else:
                 self.send_html(index_page("Estudiante no encontrado."))
         elif parsed_url.path == "/editar":
-            estudiante = get_estudiante(obtener_id(params))
-            if estudiante:
-                self.send_html(form_page(estudiante))
-            else:
-                self.send_html(index_page("Estudiante no encontrado."))
+            estudiante_id = obtener_id(params)
+            self.redirect(f"/?editar={estudiante_id}")
         elif parsed_url.path == "/static/style.css":
-            css_path = Path("static/style.css")
-            body = css_path.read_bytes()
-            self.send_response(200)
-            self.send_header("Content-Type", "text/css; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            self.send_css()
         else:
             self.send_html(page("No encontrado", "<h2>Pagina no encontrada</h2>"), 404)
 
@@ -343,7 +391,7 @@ class EstudiantesHandler(BaseHTTPRequestHandler):
         if parsed_url.path == "/crear":
             error = guardar_estudiante(data)
             if error:
-                self.send_html(form_page(None, error))
+                self.send_html(index_page(form_item=data, form_message=error))
             else:
                 self.send_html(index_page("Estudiante registrado correctamente."))
         elif parsed_url.path == "/actualizar":
@@ -354,8 +402,9 @@ class EstudiantesHandler(BaseHTTPRequestHandler):
 
             error = actualizar_estudiante(estudiante_id, data)
             if error:
-                estudiante = get_estudiante(estudiante_id)
-                self.send_html(form_page(estudiante, error))
+                form_item = dict(data)
+                form_item["id"] = str(estudiante_id)
+                self.send_html(index_page(form_item=form_item, form_message=error))
             else:
                 self.send_html(index_page("Estudiante actualizado correctamente."))
         elif parsed_url.path == "/eliminar":
@@ -379,3 +428,9 @@ def run():
 
 if __name__ == "__main__":
     run()
+
+
+
+
+
+
