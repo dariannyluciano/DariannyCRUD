@@ -197,6 +197,7 @@ def index_page(message="", search=""):
     content = f"""
     <section class="panel">
         <h2>Listado de estudiantes</h2>
+        <p class="total">Total registrados: {len(estudiantes)}</p>
         <form class="search-form" action="/" method="get">
             <input type="text" name="buscar" value="{search_value}" placeholder="Buscar estudiante">
             <button type="submit">Buscar</button>
